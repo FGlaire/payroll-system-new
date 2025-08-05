@@ -15,17 +15,19 @@
 
 <div class="flex flex-col h-screen">
   <!-- Header with hamburger pag maliit screen -->
-  <header class="flex items-center justify-between bg-black text-white h-16 px-6 shadow z-50">
-    <div class="flex items-center gap-4">
-      <button class="lg:hidden focus:outline-none" on:click={toggleSidebar}>
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-      <img src="/fusion_build_logo_2.png" alt="FusionBuild Logo" class="h-10 w-auto" />
-    </div>
-  </header>
+  <header class="flex items-center justify-between bg-black text-white w-full h-[75.2px] px-4 py-4 box-border shadow z-50">
+  <div class="flex items-center gap-4">
+    <button class="lg:hidden focus:outline-none" on:click={toggleSidebar}>
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+    <img src="/fusion_build_logo_2.png" alt="FusionBuild Logo" class="h-10 w-auto" />
+  </div>
+</header>
+
+
 
   {#if sidebarOpen}
     <div class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" on:click={toggleSidebar}></div>

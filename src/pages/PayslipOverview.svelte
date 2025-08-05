@@ -29,7 +29,13 @@
     };
   }
 
-  // For generate and download payslip pdf file
+  // Computed Payslip Values
+  $: basicPayOnly = employee.rate * payslip.daysWorked * 8;
+  $: overtimePay = employee.rate * payslip.overtime;
+  $: basicPay = basicPayOnly + overtimePay;
+  $: totalDeductions = payslip.cashAdvance;  // Add other deductions here if needed
+  $: takeHomePay = basicPay - totalDeductions;
+
   function downloadPDF() {
     const element = document.querySelector('.print-area');
     const opt = {
@@ -42,9 +48,6 @@
 
     html2pdf().from(element).set(opt).save();
   }
-
-  $: basicPay = (employee.rate * payslip.daysWorked * 8) + (employee.rate * payslip.overtime);
-  $: takeHomePay = basicPay - payslip.cashAdvance;
 
   onMount(() => {
     parseParams();
@@ -67,34 +70,77 @@
 
       <h2 class="text-center font-bold mb-2">PAYSLIP</h2>
       <div class="text-sm space-y-0.5 self-start w-full">
-        <p>Employee Name: {employee.name}</p>
-        <p>Position: {employee.type}</p>
-        <p>Account #: _____________</p>
-        <p>Payroll Method: _____________</p>
+        <div class="flex justify-between">
+          <span>Employee Name:</span>
+          <span>{employee.name}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Position:</span>
+          <span>{employee.type}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Account #:</span>
+          <span>_____________</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Payroll Method:</span>
+          <span>_____________</span>
+        </div>
       </div>
       <div class="my-1 border-t border-black w-full"></div>
 
       <!-- Earnings Section -->
-      <div class="text-sm self-start w-full space-y-0.5">
+      <div class="text-sm self-start w-full space-y-0.5 mb-8">
         <p class="font-bold">EARNINGS:</p>
-        <p>Basic Pay: ₱{basicPay.toFixed(2)}</p>
-        <div class="h-16"></div> 
+        <div class="flex justify-between">
+          <span>Hourly Rate:</span>
+          <span>₱{employee.rate.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Days Worked:</span>
+          <span>{payslip.daysWorked} day(s)</span>
+        </div>
+        <div class="flex justify-between">
+          <span>OT:</span>
+          <span>{payslip.overtime} hour(s)</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Basic Pay:</span>
+          <span>₱{basicPayOnly.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Overtime Worked:</span>
+          <span>₱{overtimePay.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between font-bold mt-2">
+          <span>Total Earnings:</span>
+          <span>₱{basicPay.toFixed(2)}</span>
+        </div>
       </div>
       <div class="my-1 border-t border-black w-full"></div>
 
       <!-- Deductions Section -->
-      <div class="text-sm self-start w-full space-y-0.5">
+      <div class="text-sm self-start w-full space-y-0.5 mb-8">
         <p class="font-bold">DEDUCTIONS:</p>
-        <p>Custom Reduction: <p> <!-- Unsure how to settle this -->
-        <p>Advances: ₱{payslip.cashAdvance.toFixed(2)}</p>
-        <div class="h-12"></div> 
-        <p>Total Deductions: ₱{payslip.cashAdvance.toFixed(2)}</p>
+        <div class="flex justify-between">
+          <span>Custom Reduction:</span>
+          <span>- ₱0.00</span> <!-- Placeholder -->
+        </div>
+        <div class="flex justify-between">
+          <span>Advances:</span>
+          <span>- ₱{payslip.cashAdvance.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between font-bold mt-2">
+          <span>Total Deductions:</span>
+          <span>- ₱{totalDeductions.toFixed(2)}</span>
+        </div>
       </div>
       <div class="my-1 border-t border-black w-full"></div>
 
-      <p class="text-sm font-bold self-start">
-        Take Home Pay: ₱{takeHomePay.toFixed(2)}
-      </p>
+      <div class="flex justify-between text-sm font-bold self-start w-full mb-2">
+        <span>Take Home Pay:</span>
+        <span>₱{takeHomePay.toFixed(2)}</span>
+      </div>
       <div class="border-b w-full mt-1"></div>
 
       <!-- Signature Area -->

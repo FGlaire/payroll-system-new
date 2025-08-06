@@ -1,41 +1,54 @@
 <script>
-  // @ts-nocheck
-
   import Layout from "../components/Layout.svelte";
   import { push } from "svelte-spa-router";
+  import { onMount } from 'svelte';
+  import { getActiveEmployees, getEmployeeById, createPayrollTransaction } from '../lib/database.js';
 
   let employeeIdInput = "";
-  /**
-   * @type {{ id: number; name: string; type: string; rate: number; } | null | undefined}
-   */
   let selectedEmployee = null;
   let showModal = false;
   let hasValidated = false;
+  let loading = false;
+  let error = null;
 
-  // TODO: REMOVE THIS DUMMY DATA, FETCH this from Supabase 'employees' table or kung san nakalagay employee
-  let employees = [
-    { id: 1, name: "Rullan, Andrei", type: "Foreman", rate: 125 },
-    { id: 2, name: "Bacolod, John", type: "Skilled", rate: 85.75 },
-    { id: 3, name: "Dancis, Jesica", type: "Labor", rate: 75 },
-  ];
-
+  let employees = [];
   let payslipData = {};
-  /**
-   * @type {any[]}
-   */
   let validatedEmployees = [];
 
-  // TODO: FETCH employees from Supabase employee list
+  // Load employees on mount
+  onMount(async () => {
+    try {
+      employees = await getActiveEmployees();
+    } catch (err) {
+      error = err.message;
+      console.error('Error loading employees:', err);
+    }
+  });
 
-  function validateEmployee() {
-    hasValidated = true;
-    selectedEmployee = employees.find((e) => e.id === +employeeIdInput);
+  async function validateEmployee() {
+    try {
+      loading = true;
+      error = null;
+      hasValidated = true;
+      
+      if (!employeeIdInput.trim()) {
+        error = "Please enter an employee ID";
+        return;
+      }
 
-    if (
-      selectedEmployee &&
-      !validatedEmployees.find((e) => e.id === selectedEmployee.id)
-    ) {
-      validatedEmployees = [...validatedEmployees, selectedEmployee];
+      selectedEmployee = await getEmployeeById(employeeIdInput);
+
+      if (
+        selectedEmployee &&
+        !validatedEmployees.find((e) => e.employee_id === selectedEmployee.employee_id)
+      ) {
+        validatedEmployees = [...validatedEmployees, selectedEmployee];
+      }
+    } catch (err) {
+      error = err.message;
+      console.error('Error validating employee:', err);
+    } finally {
+      loading = false;
     }
   }
 
@@ -43,13 +56,12 @@
     selectedEmployee = employee;
     showModal = true;
 
-    // TODO: Fetch payslip data for this employee from Supabase tables kung san nakalagay
-
-    if (!payslipData[employee.id]) {
-      payslipData[employee.id] = {
-        daysWorked: "",
-        overtime: "",
-        cashAdvance: "",
+    if (!payslipData[employee.employee_id]) {
+      payslipData[employee.employee_id] = {
+        regularHours: "",
+        overtimeHours: "",
+        specialAllowances: "",
+        customDeductions: "",
       };
     }
   }
@@ -58,9 +70,36 @@
     showModal = false;
   }
 
-  function saveData() {
-    // TODO: Insert or Update yung selected employees id sa supabase
-    showModal = false;
+  async function saveData() {
+    try {
+      loading = true;
+      error = null;
+
+      const data = payslipData[selectedEmployee.employee_id];
+      
+      if (!data.regularHours || data.regularHours <= 0) {
+        error = "Please enter regular hours (must be greater than 0)";
+        return;
+      }
+
+      const payrollData = {
+        p_employee_id: selectedEmployee.employee_id,
+        p_cut_off_start_date: new Date().toISOString().split('T')[0], // Today as start date
+        p_cut_off_end_date: new Date().toISOString().split('T')[0], // Today as end date
+        p_regular_hours: parseFloat(data.regularHours),
+        p_overtime_hours: parseFloat(data.overtimeHours) || 0,
+        p_special_allowances: parseFloat(data.specialAllowances) || 0,
+        p_custom_deductions: parseFloat(data.customDeductions) || 0
+      };
+
+      await createPayrollTransaction(payrollData);
+      showModal = false;
+    } catch (err) {
+      error = err.message;
+      console.error('Error saving payroll data:', err);
+    } finally {
+      loading = false;
+    }
   }
 
   function getPayslipDataById(id) {
@@ -68,16 +107,17 @@
   }
 
   function generatePayslip(employee) {
-    const data = getPayslipDataById(employee.id);
+    const data = getPayslipDataById(employee.employee_id);
 
     const queryParams = new URLSearchParams({
-      id: employee.id,
-      name: employee.name,
-      type: employee.type,
-      rate: employee.rate,
-      daysWorked: data.daysWorked || 0,
-      overtime: data.overtime || 0,
-      cashAdvance: data.cashAdvance || 0,
+      id: employee.employee_id,
+      name: employee.employee_name,
+      type: employee.employee_type,
+      rate: employee.rate_per_hour,
+      regularHours: data.regularHours || 0,
+      overtimeHours: data.overtimeHours || 0,
+      specialAllowances: data.specialAllowances || 0,
+      customDeductions: data.customDeductions || 0,
     });
 
     push(`/payslip-overview?${queryParams.toString()}`);
@@ -88,28 +128,39 @@
   <div class="space-y-6">
     <h2 class="text-3xl font-bold">Payslip</h2>
 
+    <!-- Error Display -->
+    {#if error}
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        {error}
+      </div>
+    {/if}
+
     <!-- For Validation, if employee is nasa list -->
     <div class="flex flex-wrap items-center gap-2">
-      <label class="block font-medium">Enter Employee ID:</label>
+      <label for="employee-id-input" class="block font-medium">Enter Employee ID:</label>
       <input
-        type="number"
+        id="employee-id-input"
+        type="text"
         bind:value={employeeIdInput}
+        placeholder="e.g., EMP001"
         class="border p-2 rounded w-full sm:w-60 text-sm"
       />
       <button
         on:click={validateEmployee}
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto shadow-md text-sm"
-        >Validate</button
+        disabled={loading}
       >
+        {loading ? 'Validating...' : 'Validate'}
+      </button>
     </div>
 
     {#if hasValidated}
       {#if selectedEmployee}
         <div class="p-4 bg-green-100 rounded shadow text-green-900 text-sm">
-          <p><strong>ID:</strong> {selectedEmployee.id}</p>
-          <p><strong>Name:</strong> {selectedEmployee.name}</p>
-          <p><strong>Type:</strong> {selectedEmployee.type}</p>
-          <p><strong>Hourly Rate:</strong> ₱{selectedEmployee.rate}</p>
+          <p><strong>ID:</strong> {selectedEmployee.employee_id}</p>
+          <p><strong>Name:</strong> {selectedEmployee.employee_name}</p>
+          <p><strong>Type:</strong> {selectedEmployee.employee_type}</p>
+          <p><strong>Hourly Rate:</strong> ₱{selectedEmployee.rate_per_hour}</p>
         </div>
       {:else}
         <div class="p-4 rounded shadow record-row text-sm">
@@ -118,7 +169,7 @@
       {/if}
     {/if}
 
-    <!-- Table for Validated Employees at the moment -->
+    <!-- Table for Validated Employees -->
     <div class="bg-white rounded-lg p-4 shadow overflow-x-auto">
       <h3 class="text-lg font-semibold mb-4">Records</h3>
       <table class="w-full min-w-[600px] border-collapse text-sm">
@@ -128,10 +179,10 @@
             <th class="p-3 text-left">Name</th>
             <th class="p-3 text-left">Type</th>
             <th class="p-3 text-left">Hourly Rate</th>
-            <th class="p-3 text-left">No. of Days</th>
-            <th class="p-3 text-left">Overtime</th>
-            <th class="p-3 text-left">Cash Advance</th>
-            <th class="p-3 text-left">Total</th>
+            <th class="p-3 text-left">Regular Hours</th>
+            <th class="p-3 text-left">Overtime Hours</th>
+            <th class="p-3 text-left">Allowances</th>
+            <th class="p-3 text-left">Deductions</th>
             <th class="p-3 text-left rounded-tr-lg">Actions</th>
           </tr>
         </thead>
@@ -141,48 +192,42 @@
               <td colspan="9" class="text-center p-4 text-sm">No record found.</td>
             </tr>
           {:else}
-            {#each validatedEmployees as employee (employee.id)}
+            {#each validatedEmployees as employee (employee.employee_id)}
               <tr class="record-row">
-                <td class="p-3 text-sm">{employee.id}</td>
-                <td class="p-3 text-sm">{employee.name}</td>
-                <td class="p-3 text-sm">{employee.type}</td>
-                <td class="p-3 text-sm">₱{employee.rate}</td>
-                <td class="p-3 text-sm">{getPayslipDataById(employee.id).daysWorked || "--"}</td>
-                <td class="p-3 text-sm">{getPayslipDataById(employee.id).overtime || "--"}</td>
+                <td class="p-3 text-sm">{employee.employee_id}</td>
+                <td class="p-3 text-sm">{employee.employee_name}</td>
+                <td class="p-3 text-sm">{employee.employee_type}</td>
+                <td class="p-3 text-sm">₱{employee.rate_per_hour}</td>
+                <td class="p-3 text-sm">{getPayslipDataById(employee.employee_id).regularHours || "--"}</td>
+                <td class="p-3 text-sm">{getPayslipDataById(employee.employee_id).overtimeHours || "--"}</td>
                 <td class="p-3 text-sm">
-                  {#if getPayslipDataById(employee.id).cashAdvance !== "" && getPayslipDataById(employee.id).cashAdvance != null}
-                    ₱{(+getPayslipDataById(employee.id).cashAdvance).toFixed(2)}
+                  {#if getPayslipDataById(employee.employee_id).specialAllowances}
+                    ₱{(+getPayslipDataById(employee.employee_id).specialAllowances).toFixed(2)}
                   {:else}
                     --
                   {/if}
                 </td>
                 <td class="p-3 text-sm">
-                  {#if getPayslipDataById(employee.id).daysWorked}
-                    ₱{(
-                      employee.rate *
-                      +getPayslipDataById(employee.id).daysWorked * 8 +
-                      (employee.rate * +getPayslipDataById(employee.id).overtime || 0) -
-                      (+getPayslipDataById(employee.id).cashAdvance || 0)
-                    ).toFixed(2)}
+                  {#if getPayslipDataById(employee.employee_id).customDeductions}
+                    ₱{(+getPayslipDataById(employee.employee_id).customDeductions).toFixed(2)}
                   {:else}
                     --
                   {/if}
                 </td>
                 <td class="p-3 flex flex-wrap gap-2">
-                  <!-- If malagyan na nga data, magkakaron ng 2 buttons which is edit and generate payslip -->
                   <button
                     on:click={() => openModal(employee)}
                     class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded w-full sm:w-auto shadow-md text-sm"
-                    >{getPayslipDataById(employee.id).daysWorked
-                      ? "Edit"
-                      : "Input Data"}</button
                   >
-                  {#if getPayslipDataById(employee.id).daysWorked}
+                    {getPayslipDataById(employee.employee_id).regularHours ? "Edit" : "Input Data"}
+                  </button>
+                  {#if getPayslipDataById(employee.employee_id).regularHours}
                     <button
                       on:click={() => generatePayslip(employee)}
                       class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded w-full sm:w-auto shadow-md text-sm"
-                      >Generate Payslip</button
                     >
+                      Generate Payslip
+                    </button>
                   {/if}
                 </td>
               </tr>
@@ -205,32 +250,54 @@
 
           <h3 class="text-lg font-semibold mb-4 mt-4">Enter Payslip Data</h3>
 
-          <!-- Still unsure dito kaya days lalagay dito and 1 day is = 8 hrs -->
+          <!-- Regular Hours -->
           <div class="mb-3">
-            <label class="block font-medium mb-1">No. of Days Worked</label>
+            <label for="regular-hours" class="block font-medium mb-1">Regular Hours *</label>
             <input
+              id="regular-hours"
               type="number"
-              bind:value={payslipData[selectedEmployee.id].daysWorked}
+              step="0.5"
+              bind:value={payslipData[selectedEmployee.employee_id].regularHours}
+              placeholder="0.0"
               class="w-full border p-2 rounded text-sm"
             />
           </div>
 
-          <!-- MHours ilalagay dito  -->
+          <!-- Overtime Hours -->
           <div class="mb-3">
-            <label class="block font-medium mb-1">Overtime (hour/s)</label>
+            <label for="overtime-hours" class="block font-medium mb-1">Overtime Hours</label>
             <input
+              id="overtime-hours"
               type="number"
-              bind:value={payslipData[selectedEmployee.id].overtime}
+              step="0.5"
+              bind:value={payslipData[selectedEmployee.employee_id].overtimeHours}
+              placeholder="0.0"
               class="w-full border p-2 rounded text-sm"
             />
           </div>
 
-          <!-- For Cash Advances -->
+          <!-- Special Allowances -->
+          <div class="mb-3">
+            <label for="special-allowances" class="block font-medium mb-1">Special Allowances (₱)</label>
+            <input
+              id="special-allowances"
+              type="number"
+              step="0.01"
+              bind:value={payslipData[selectedEmployee.employee_id].specialAllowances}
+              placeholder="0.00"
+              class="w-full border p-2 rounded text-sm"
+            />
+          </div>
+
+          <!-- Custom Deductions -->
           <div class="mb-4">
-            <label class="block font-medium mb-1">Cash Advance (₱)</label>
+            <label for="custom-deductions" class="block font-medium mb-1">Custom Deductions (₱)</label>
             <input
+              id="custom-deductions"
               type="number"
-              bind:value={payslipData[selectedEmployee.id].cashAdvance}
+              step="0.01"
+              bind:value={payslipData[selectedEmployee.employee_id].customDeductions}
+              placeholder="0.00"
               class="w-full border p-2 rounded text-sm"
             />
           </div>
@@ -239,13 +306,16 @@
             <button
               on:click={saveData}
               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-md text-sm"
-              >Save</button
+              disabled={loading}
             >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
             <button
               on:click={closeModal}
               class="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded shadow-md text-sm"
-              >Cancel</button
             >
+              Cancel
+            </button>
           </div>
         </div>
       </div>

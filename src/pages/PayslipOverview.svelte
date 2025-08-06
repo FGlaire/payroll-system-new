@@ -8,7 +8,7 @@
   import html2pdf from 'html2pdf.js';
 
   let employee = { name: '', type: '', rate: 0 };
-  let payslip = { daysWorked: 0, overtime: 0, cashAdvance: 0 };
+  let payslip = { regularHours: 0, overtimeHours: 0, specialAllowances: 0, customDeductions: 0 };
 
   function parseParams() {
     const hash = window.location.hash;
@@ -23,18 +23,19 @@
     };
 
     payslip = {
-      daysWorked: parseFloat(params.get('daysWorked')) || 0,
-      overtime: parseFloat(params.get('overtime')) || 0,
-      cashAdvance: parseFloat(params.get('cashAdvance')) || 0,
+      regularHours: parseFloat(params.get('regularHours')) || 0,
+      overtimeHours: parseFloat(params.get('overtimeHours')) || 0,
+      specialAllowances: parseFloat(params.get('specialAllowances')) || 0,
+      customDeductions: parseFloat(params.get('customDeductions')) || 0,
     };
   }
 
   // Computed Payslip Values
-  $: basicPayOnly = employee.rate * payslip.daysWorked * 8;
-  $: overtimePay = employee.rate * payslip.overtime;
-  $: basicPay = basicPayOnly + overtimePay;
-  $: totalDeductions = payslip.cashAdvance;  // Add other deductions here if needed
-  $: takeHomePay = basicPay - totalDeductions;
+  $: basicPay = employee.rate * payslip.regularHours;
+  $: overtimePay = employee.rate * payslip.overtimeHours * 1.25; // Using 1.25 multiplier
+  $: grossPay = basicPay + overtimePay + payslip.specialAllowances;
+  $: totalDeductions = payslip.customDeductions;
+  $: takeHomePay = grossPay - totalDeductions;
 
   function downloadPDF() {
     const element = document.querySelector('.print-area');
@@ -79,11 +80,11 @@
           <span>{employee.type}</span>
         </div>
         <div class="flex justify-between">
-          <span>Account #:</span>
-          <span>_____________</span>
+          <span>Employee ID:</span>
+          <span>{employee.id}</span>
         </div>
         <div class="flex justify-between">
-          <span>Payroll Method:</span>
+          <span>Date:</span>
           <span>_____________</span>
         </div>
       </div>
@@ -98,24 +99,28 @@
           <span>₱{employee.rate.toFixed(2)}</span>
         </div>
         <div class="flex justify-between">
-          <span>Days Worked:</span>
-          <span>{payslip.daysWorked} day(s)</span>
+          <span>Regular Hours:</span>
+          <span>{payslip.regularHours} hour(s)</span>
         </div>
         <div class="flex justify-between">
-          <span>OT:</span>
-          <span>{payslip.overtime} hour(s)</span>
+          <span>Overtime Hours:</span>
+          <span>{payslip.overtimeHours} hour(s)</span>
         </div>
         <div class="flex justify-between">
           <span>Basic Pay:</span>
-          <span>₱{basicPayOnly.toFixed(2)}</span>
+          <span>₱{basicPay.toFixed(2)}</span>
         </div>
         <div class="flex justify-between">
-          <span>Overtime Worked:</span>
+          <span>Overtime Pay:</span>
           <span>₱{overtimePay.toFixed(2)}</span>
         </div>
+        <div class="flex justify-between">
+          <span>Special Allowances:</span>
+          <span>₱{payslip.specialAllowances.toFixed(2)}</span>
+        </div>
         <div class="flex justify-between font-bold mt-2">
-          <span>Total Earnings:</span>
-          <span>₱{basicPay.toFixed(2)}</span>
+          <span>Gross Pay:</span>
+          <span>₱{grossPay.toFixed(2)}</span>
         </div>
       </div>
       <div class="my-1 border-t border-black w-full"></div>
@@ -124,12 +129,8 @@
       <div class="text-sm self-start w-full space-y-0.5 mb-8">
         <p class="font-bold">DEDUCTIONS:</p>
         <div class="flex justify-between">
-          <span>Custom Reduction:</span>
-          <span>- ₱0.00</span> <!-- Placeholder -->
-        </div>
-        <div class="flex justify-between">
-          <span>Advances:</span>
-          <span>- ₱{payslip.cashAdvance.toFixed(2)}</span>
+          <span>Custom Deductions:</span>
+          <span>- ₱{payslip.customDeductions.toFixed(2)}</span>
         </div>
         <div class="flex justify-between font-bold mt-2">
           <span>Total Deductions:</span>

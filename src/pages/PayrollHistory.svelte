@@ -1,40 +1,37 @@
 <script>
   import Layout from "../components/Layout.svelte";
+  import { onMount } from 'svelte';
+  import { getPayrollHistory } from '../lib/database.js';
 
   let filter = "All";
   let search = "";
+  let loading = false;
+  let error = null;
+  let payrollHistory = [];
 
-  // TODO: REMOVE THIS DUMMY DATA. Fetch payroll history from san nakalagay na table sa supabase
-  let payrollHistory = [
-    {
-      id: 1,
-      name: "Rullan, Andrei",
-      type: "Foreman",
-      days: 24,
-      overtime: 5,
-      rate: 125,
-      cashAdvance: 1000,
-      total: 4550,
-    },
-    {
-      id: 2,
-      name: "Bacolod, John",
-      type: "Skilled",
-      days: 22,
-      overtime: 4,
-      rate: 87.5,
-      cashAdvance: 800,
-      total: 3700,
-    },
-  ];
+  // Load payroll history on mount
+  onMount(async () => {
+    await loadPayrollHistory();
+  });
 
-  // fetch data from Supabase plsss
+  async function loadPayrollHistory() {
+    try {
+      loading = true;
+      error = null;
+      payrollHistory = await getPayrollHistory();
+    } catch (err) {
+      error = err.message;
+      console.error('Error loading payroll history:', err);
+    } finally {
+      loading = false;
+    }
+  }
 
   $: filteredHistory = payrollHistory.filter((entry) => {
     return (
-      (filter === "All" || entry.type === filter) &&
-      (entry.name.toLowerCase().includes(search.toLowerCase()) ||
-        entry.id.toString().includes(search))
+      (filter === "All" || entry.employee_type === filter) &&
+      (entry.employee_name.toLowerCase().includes(search.toLowerCase()) ||
+        entry.employee_id.toLowerCase().includes(search.toLowerCase()))
     );
   });
 </script>
@@ -42,11 +39,19 @@
 <Layout currentPage="history">
   <h1 class="text-3xl font-bold mb-6">Payroll History</h1>
 
-  <!-- Filter and Search Row na hahanapin sa supabase tables -->
+  <!-- Error Display -->
+  {#if error}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      {error}
+    </div>
+  {/if}
+
+  <!-- Filter and Search Row -->
   <div class="flex justify-between items-center mb-4">
     <div class="flex items-center gap-2">
-      <label class="text-md font-medium">Filter:</label>
+      <label for="history-filter" class="text-md font-medium">Filter:</label>
       <select
+        id="history-filter"
         bind:value={filter}
         class="border border-gray-300 rounded px-4 py-2"
       >
@@ -58,8 +63,9 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <label class="text-md font-medium">Search:</label>
+      <label for="history-search" class="text-md font-medium">Search:</label>
       <input
+        id="history-search"
         type="text"
         bind:value={search}
         class="border border-gray-300 px-4 py-2 rounded"
@@ -71,54 +77,65 @@
     </div>
   </div>
 
-  <!-- Table for Employees na ok na payslip -->
+  <!-- Table for Payroll History -->
   <div class="bg-white rounded-lg p-4 shadow overflow-x-auto">
-    <h3 class="text-lg font-semibold mb-4">Employee</h3>
+    <h3 class="text-lg font-semibold mb-4">Payroll History</h3>
 
-    <table class="w-full text-left border-collapse">
-      <thead class="bg-[#002244] text-white">
-        <tr>
-          <th class="px-4 py-2 rounded-tl-lg">ID</th>
-          <th class="px-4 py-2">Name</th>
-          <th class="px-4 py-2">Type</th>
-          <th class="px-4 py-2">No. of Days</th>
-          <th class="px-4 py-2">Overtime</th>
-          <th class="px-4 py-2">Hourly Rate</th>
-          <th class="px-4 py-2">Cash Advance</th>
-          <th class="px-4 py-2">Total</th>
-          <th class="px-4 py-2 rounded-tr-lg">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each filteredHistory as record, index (record.id)}
-          <tr class="record-row {index === filteredHistory.length - 1 ? 'rounded-bl-lg rounded-br-lg' : ''}">
-            <td class="px-4 py-2">{record.id}</td>
-            <td class="px-4 py-2">{record.name}</td>
-            <td class="px-4 py-2">{record.type}</td>
-            <td class="px-4 py-2">{record.days}</td>
-            <td class="px-4 py-2">{record.overtime}</td>
-            <td class="px-4 py-2">₱{record.rate.toFixed(2)}</td>
-            <td class="px-4 py-2">₱{record.cashAdvance.toFixed(2)}</td>
-            <td class="px-4 py-2">₱{record.total.toFixed(2)}</td>
-            <td class="px-4 py-2">
-              <button class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm shadow-md">
-                View
-              </button>
-            </td>
-          </tr>
-        {/each}
-
-        {#if filteredHistory.length === 0}
+    {#if loading}
+      <div class="text-center py-8">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <p class="mt-2 text-gray-600">Loading payroll history...</p>
+      </div>
+    {:else}
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-[#002244] text-white">
           <tr>
-            <td colspan="9" class="px-4 py-4">
-              <div class="bg-gray-200 text-gray-600 italic text-center rounded-lg py-2">
-                No matching records found.
-              </div>
-            </td>
+            <th class="px-4 py-2 rounded-tl-lg">Transaction ID</th>
+            <th class="px-4 py-2">Employee ID</th>
+            <th class="px-4 py-2">Name</th>
+            <th class="px-4 py-2">Type</th>
+            <th class="px-4 py-2">Regular Hours</th>
+            <th class="px-4 py-2">Overtime Hours</th>
+            <th class="px-4 py-2">Basic Pay</th>
+            <th class="px-4 py-2">Overtime Pay</th>
+            <th class="px-4 py-2">Gross Pay</th>
+            <th class="px-4 py-2">Net Pay</th>
+            <th class="px-4 py-2 rounded-tr-lg">Actions</th>
           </tr>
-        {/if}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each filteredHistory as record, index (record.transaction_id)}
+            <tr class="record-row {index === filteredHistory.length - 1 ? 'rounded-bl-lg rounded-br-lg' : ''}">
+              <td class="px-4 py-2">{record.transaction_id}</td>
+              <td class="px-4 py-2">{record.employee_id}</td>
+              <td class="px-4 py-2">{record.employee_name}</td>
+              <td class="px-4 py-2">{record.employee_type}</td>
+              <td class="px-4 py-2">{record.regular_hours}</td>
+              <td class="px-4 py-2">{record.overtime_hours}</td>
+              <td class="px-4 py-2">₱{record.basic_pay.toFixed(2)}</td>
+              <td class="px-4 py-2">₱{record.overtime_pay.toFixed(2)}</td>
+              <td class="px-4 py-2">₱{record.gross_pay.toFixed(2)}</td>
+              <td class="px-4 py-2">₱{record.net_pay.toFixed(2)}</td>
+              <td class="px-4 py-2">
+                <button class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm shadow-md">
+                  View
+                </button>
+              </td>
+            </tr>
+          {/each}
+
+          {#if filteredHistory.length === 0}
+            <tr>
+              <td colspan="11" class="px-4 py-4">
+                <div class="bg-gray-200 text-gray-600 italic text-center rounded-lg py-2">
+                  No matching records found.
+                </div>
+              </td>
+            </tr>
+          {/if}
+        </tbody>
+      </table>
+    {/if}
   </div>
 </Layout>
 

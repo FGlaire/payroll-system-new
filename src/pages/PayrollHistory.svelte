@@ -2,6 +2,7 @@
   import Layout from "../components/Layout.svelte";
   import { onMount } from 'svelte';
   import { getPayrollHistory } from '../lib/database.js';
+  import { push } from 'svelte-spa-router';
 
   let filter = "All";
   let search = "";
@@ -34,6 +35,20 @@
         entry.employee_id.toLowerCase().includes(search.toLowerCase()))
     );
   });
+
+  function viewPayslip(record) {
+    const queryParams = new URLSearchParams({
+      id: record.employee_id,
+      name: record.employee_name,
+      type: record.employee_type,
+      rate: record.rate_per_hour,
+      regularHours: record.regular_hours,
+      overtimeHours: record.overtime_hours,
+      specialAllowances: record.special_allowances,
+      customDeductions: record.custom_deductions
+    });
+    push(`/payslip-overview?${queryParams.toString()}`);
+  }
 </script>
 
 <Layout currentPage="history">
@@ -117,7 +132,7 @@
               <td class="px-4 py-2">₱{record.gross_pay.toFixed(2)}</td>
               <td class="px-4 py-2">₱{record.net_pay.toFixed(2)}</td>
               <td class="px-4 py-2">
-                <button class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm shadow-md">
+                <button class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm shadow-md" on:click={() => viewPayslip(record)}>
                   View
                 </button>
               </td>

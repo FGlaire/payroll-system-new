@@ -40,13 +40,12 @@
   function downloadPDF() {
     const element = document.querySelector('.print-area');
     const opt = {
-      margin: 0,
+      margin: [10, 10, 10, 10],
       filename: `Payslip_${employee.name}.pdf`,
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { scale: 3 },
+      html2canvas: { scale: 4 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-
     html2pdf().from(element).set(opt).save();
   }
 
@@ -61,9 +60,9 @@
 </script>
 
 <Layout currentPage="payslip">
-  <div class="bg-white p-4 sm:p-6 rounded shadow-xl flex flex-col lg:flex-row gap-6 items-center lg:items-start">
+  <div class="bg-white p-4 sm:p-6 rounded shadow-xl flex flex-col items-center gap-6">
     <!-- Payslip Content -->
-    <div class="print-area border border-gray-300 p-4 sm:p-6 w-full max-w-[514px] h-auto relative flex flex-col items-center">
+    <div class="print-area border border-gray-300 p-4 sm:p-6 w-full max-w-[700px] h-auto relative flex flex-col items-center" style="min-width: 600px;">
       <img src="/fusion_build_logo_2.png" alt="FusionBuild Logo" class="h-16 w-auto mb-1" />
       <p class="text-center text-[10px] mb-2">
         LOT 1954, GEN. E Aguinaldo Hwy, Lalaan 2, Silang, 4118 Cavite | contact@fusionbuild.tech
@@ -159,9 +158,8 @@
         </div>
       </div>
     </div>
-
-    <!-- Edit and Download PDF Buttons -->
-    <div class="no-print w-full lg:w-auto flex justify-center lg:justify-end items-center">
+    <!-- Edit and Download PDF Buttons BELOW -->
+    <div class="no-print w-full flex justify-center items-center mt-4">
       <div class="flex flex-col sm:flex-row gap-4">
         <button
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded shadow-md w-full sm:w-auto"

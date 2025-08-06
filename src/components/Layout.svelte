@@ -23,7 +23,7 @@
           d="M4 6h16M4 12h16M4 18h16" />
       </svg>
     </button>
-    <img src="/fusion_build_logo_2.png" alt="FusionBuild Logo" class="h-10 w-auto" />
+    <img src="/fusion_build_logo_1.png" alt="FusionBuild Logo" class="h-10 w-auto" />
   </div>
 </header>
 

@@ -298,6 +298,7 @@
         <option>Foreman</option>
         <option>Skilled</option>
         <option>Labor</option>
+        <option>Other</option>
       </select>
     </div>
 

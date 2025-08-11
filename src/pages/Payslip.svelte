@@ -45,7 +45,18 @@
         validatedEmployees = [...validatedEmployees, selectedEmployee];
       }
     } catch (err) {
-      error = err.message;
+      // User-friendly error for not found
+      if (
+        err.message &&
+        (err.message.includes('Cannot coerce the result to a single JSON object') ||
+         err.message.toLowerCase().includes('no rows') ||
+         err.message.toLowerCase().includes('not found'))
+      ) {
+        selectedEmployee = null;
+        error = null; // Don't show technical error
+      } else {
+        error = err.message;
+      }
       console.error('Error validating employee:', err);
     } finally {
       loading = false;
@@ -62,12 +73,30 @@
         overtimeHours: "",
         specialAllowances: "",
         customDeductions: "",
+        deductionDetails: [] // <-- new
       };
+    } else if (!payslipData[employee.employee_id].deductionDetails) {
+      payslipData[employee.employee_id].deductionDetails = [];
     }
   }
 
   function closeModal() {
     showModal = false;
+  }
+
+  function addDeductionField() {
+    if (selectedEmployee) {
+      const key = selectedEmployee.employee_id;
+      const current = payslipData[key].deductionDetails || [];
+      payslipData[key].deductionDetails = [...current, { remark: '', amount: '' }];
+    }
+  }
+  function removeDeductionField(idx) {
+    if (selectedEmployee) {
+      const key = selectedEmployee.employee_id;
+      const current = payslipData[key].deductionDetails || [];
+      payslipData[key].deductionDetails = current.filter((_, i) => i !== idx);
+    }
   }
 
   async function saveData() {
@@ -76,20 +105,28 @@
       error = null;
 
       const data = payslipData[selectedEmployee.employee_id];
-      
+
       if (!data.regularHours || data.regularHours <= 0) {
         error = "Please enter regular hours (must be greater than 0)";
         return;
       }
 
+      // Sum all deduction amounts
+      let totalDeductions = 0;
+      if (data.deductionDetails && data.deductionDetails.length > 0) {
+        totalDeductions = data.deductionDetails.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+      }
+      data.customDeductions = totalDeductions;
+
       const payrollData = {
         p_employee_id: selectedEmployee.employee_id,
-        p_cut_off_start_date: new Date().toISOString().split('T')[0], // Today as start date
-        p_cut_off_end_date: new Date().toISOString().split('T')[0], // Today as end date
+        p_cut_off_start_date: new Date().toISOString().split('T')[0],
+        p_cut_off_end_date: new Date().toISOString().split('T')[0],
         p_regular_hours: parseFloat(data.regularHours),
         p_overtime_hours: parseFloat(data.overtimeHours) || 0,
         p_special_allowances: parseFloat(data.specialAllowances) || 0,
-        p_custom_deductions: parseFloat(data.customDeductions) || 0
+        p_custom_deductions: totalDeductions,
+        p_deduction_remarks: JSON.stringify(data.deductionDetails)
       };
 
       await createPayrollTransaction(payrollData);
@@ -291,15 +328,25 @@
 
           <!-- Custom Deductions -->
           <div class="mb-4">
-            <label for="custom-deductions" class="block font-medium mb-1">Custom Deductions (₱)</label>
-            <input
-              id="custom-deductions"
-              type="number"
-              step="0.01"
-              bind:value={payslipData[selectedEmployee.employee_id].customDeductions}
-              placeholder="0.00"
-              class="w-full border p-2 rounded text-sm"
-            />
+            <label class="block font-medium mb-1">Custom Deductions</label>
+            {#each payslipData[selectedEmployee.employee_id].deductionDetails as deduction, idx}
+              <div class="flex gap-2 mb-2">
+                <input type="text" placeholder="Remark" bind:value={deduction.remark} class="border p-2 rounded text-sm flex-1" />
+                <input type="number" step="0.01" placeholder="Amount" bind:value={deduction.amount} class="border p-2 rounded text-sm w-32" />
+                <button type="button" class="bg-red-500 text-white px-2 rounded" on:click={() => removeDeductionField(idx)}>-</button>
+              </div>
+            {/each}
+            <button type="button" class="bg-blue-500 text-white px-3 py-1 rounded text-sm" on:click={addDeductionField}>+ Add Deduction</button>
+            {#key payslipData[selectedEmployee.employee_id].deductionDetails}
+              <div class="mt-2 text-sm text-gray-600">
+                Total: ₱{
+                  (
+                    (payslipData[selectedEmployee.employee_id].deductionDetails || [])
+                      .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+                  ).toFixed(2)
+                }
+              </div>
+            {/key}
           </div>
 
           <div class="flex justify-end gap-2">

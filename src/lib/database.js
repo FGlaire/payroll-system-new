@@ -80,6 +80,49 @@ export async function getPayrollByEmployee(employeeId) {
   return data;
 }
 
+// Payroll soft delete and trash operations
+export async function deletePayrollTransaction(transactionId) {
+  // Soft delete by marking a deleted_at timestamp
+  const { data, error } = await supabase
+    .from('payroll_transactions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('transaction_id', transactionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function restorePayrollTransaction(transactionId) {
+  const { data, error } = await supabase
+    .from('payroll_transactions')
+    .update({ deleted_at: null })
+    .eq('transaction_id', transactionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function permanentlyDeletePayrollTransaction(transactionId) {
+  const { error } = await supabase
+    .from('payroll_transactions')
+    .delete()
+    .eq('transaction_id', transactionId);
+  if (error) throw error;
+  return true;
+}
+
+export async function getDeletedPayrollTransactions() {
+  const { data, error } = await supabase
+    .from('payroll_transactions')
+    .select('*')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function createPayrollTransaction(payrollData) {
   const { data, error } = await supabase
     .rpc('insert_payroll_transaction', payrollData);

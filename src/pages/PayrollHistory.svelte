@@ -1,7 +1,13 @@
 <script>
   import Layout from "../components/Layout.svelte";
   import { onMount } from 'svelte';
-  import { getPayrollHistory } from '../lib/database.js';
+  import {
+    getPayrollHistory,
+    deletePayrollTransaction,
+    restorePayrollTransaction,
+    permanentlyDeletePayrollTransaction,
+    getDeletedPayrollTransactions
+  } from '../lib/database.js';
   import { push } from 'svelte-spa-router';
 
   let filter = "All";
@@ -9,10 +15,12 @@
   let loading = false;
   let error = null;
   let payrollHistory = [];
+  let deletedTransactions = [];
 
   // Load payroll history on mount
   onMount(async () => {
     await loadPayrollHistory();
+    await loadDeleted();
   });
 
   async function loadPayrollHistory() {
@@ -25,6 +33,15 @@
       console.error('Error loading payroll history:', err);
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadDeleted() {
+    try {
+      const data = await getDeletedPayrollTransactions();
+      deletedTransactions = data || [];
+    } catch (err) {
+      console.error('Error loading deleted payroll:', err);
     }
   }
 
@@ -48,6 +65,38 @@
       customDeductions: record.custom_deductions
     });
     push(`/payslip-overview?${queryParams.toString()}`);
+  }
+
+  async function softDelete(record) {
+    if (!confirm(`Move transaction ${record.transaction_id} to trash?`)) return;
+    await deletePayrollTransaction(record.transaction_id);
+    await loadPayrollHistory();
+    await loadDeleted();
+  }
+
+  async function restore(tx) {
+    await restorePayrollTransaction(tx.transaction_id);
+    await loadPayrollHistory();
+    await loadDeleted();
+  }
+
+  async function purge(tx) {
+    if (!confirm(`Permanently delete transaction ${tx.transaction_id}? This cannot be undone.`)) return;
+    await permanentlyDeletePayrollTransaction(tx.transaction_id);
+    await loadPayrollHistory();
+    await loadDeleted();
+  }
+
+  // Helper to parse deduction remarks
+  function getDeductionDetails(record) {
+    if (!record.deduction_remarks) return [];
+    try {
+      const arr = JSON.parse(record.deduction_remarks);
+      if (Array.isArray(arr)) return arr;
+      return [];
+    } catch {
+      return [];
+    }
   }
 </script>
 
@@ -115,6 +164,7 @@
             <th class="px-4 py-2">Overtime Pay</th>
             <th class="px-4 py-2">Gross Pay</th>
             <th class="px-4 py-2">Net Pay</th>
+            <th class="px-4 py-2">Deduction Details</th>
             <th class="px-4 py-2 rounded-tr-lg">Actions</th>
           </tr>
         </thead>
@@ -132,8 +182,22 @@
               <td class="px-4 py-2">₱{record.gross_pay.toFixed(2)}</td>
               <td class="px-4 py-2">₱{record.net_pay.toFixed(2)}</td>
               <td class="px-4 py-2">
+                {#if getDeductionDetails(record).length > 0}
+                  <ul class="text-xs text-gray-900">
+                    {#each getDeductionDetails(record) as d}
+                      <li>{d.remark}: ₱{(+d.amount || 0).toFixed(2)}</li>
+                    {/each}
+                  </ul>
+                {:else}
+                  --
+                {/if}
+              </td>
+              <td class="px-4 py-2 flex gap-2">
                 <button class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm shadow-md" on:click={() => viewPayslip(record)}>
                   View
+                </button>
+                <button class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-white text-sm shadow-md" on:click={() => softDelete(record)}>
+                  🗑️
                 </button>
               </td>
             </tr>
@@ -150,6 +214,39 @@
           {/if}
         </tbody>
       </table>
+    {/if}
+  </div>
+
+  <!-- Trash Modal-like section -->
+  <div class="bg-white rounded-lg p-4 shadow mt-6">
+    <h3 class="text-lg font-semibold mb-4">Deleted Transactions (Trash)</h3>
+    {#if deletedTransactions.length === 0}
+      <div class="text-gray-500 italic">No deleted transactions.</div>
+    {:else}
+      <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="px-3 py-2">Txn ID</th>
+            <th class="px-3 py-2">Employee</th>
+            <th class="px-3 py-2">Deleted At</th>
+            <th class="px-3 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each deletedTransactions as tx}
+            <tr>
+              <td class="px-3 py-2">{tx.transaction_id}</td>
+              <td class="px-3 py-2">{tx.employee_id}</td>
+              <td class="px-3 py-2">{tx.deleted_at?.split('T')[0]}</td>
+              <td class="px-3 py-2 flex gap-2">
+                <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded" on:click={() => restore(tx)}>Restore</button>
+                <button class="bg-red-700 hover:bg-red-800 text-white px-3 py-1 rounded" on:click={() => purge(tx)}>Delete</button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-600 mt-2">Items in trash are permanently deleted after 30 days.</p>
     {/if}
   </div>
 </Layout>

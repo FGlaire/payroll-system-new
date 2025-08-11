@@ -30,12 +30,14 @@
   let newId = "";
   let newType = "";
   let newRate = "";
+  let newCustomType = ""; // <-- add for custom type
 
   // Edit form data
   let editingEmployee = null;
   let editName = "";
   let editType = "";
   let editRate = "";
+  let editCustomType = ""; // <-- add for custom type
 
   let chart;
   let chartCanvas;
@@ -155,6 +157,9 @@
     editName = employee.employee_name;
     editType = employee.employee_type;
     editRate = employee.rate_per_hour.toString();
+    editCustomType = (editType !== 'Foreman' && editType !== 'Skilled' && editType !== 'Labor') ? editType : '';
+    if (editCustomType) editType = 'Other';
+    // Reset deduction fields if needed (if you have deduction editing here)
     showEditEmployeeModal = true;
   }
 
@@ -163,14 +168,14 @@
       loading = true;
       error = null;
 
-      if (!editName || !editType || !editRate) {
+      if (!editName || !editType || !editRate || (editType === 'Other' && !editCustomType.trim())) {
         error = "Please fill in all fields";
         return;
       }
 
       const updates = {
         employee_name: editName,
-        employee_type: editType,
+        employee_type: editType === 'Other' ? editCustomType.trim() : editType,
         rate_per_hour: parseFloat(editRate)
       };
 
@@ -181,6 +186,7 @@
       editName = "";
       editType = "";
       editRate = "";
+      editCustomType = ""; // Reset custom type
       showEditEmployeeModal = false;
 
       // Reload data
@@ -219,7 +225,7 @@
       loading = true;
       error = null;
 
-      if (!newName || !newId || !newType || !newRate) {
+      if (!newName || !newId || !newType || !newRate || (newType === 'Other' && !newCustomType.trim())) {
         error = "Please fill in all fields";
         return;
       }
@@ -227,7 +233,7 @@
       const employeeData = {
         employee_id: newId,
         employee_name: newName,
-        employee_type: newType,
+        employee_type: newType === 'Other' ? newCustomType.trim() : newType,
         rate_per_hour: parseFloat(newRate)
       };
 
@@ -238,6 +244,7 @@
       newId = "";
       newType = "";
       newRate = "";
+      newCustomType = ""; // Reset custom type
       showAddEmployeeModal = false;
 
       // Reload data
@@ -382,7 +389,7 @@
     <div
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md md:max-w-lg lg:max-w-xl relative overflow-y-auto" style="max-height:90vh;">
         <button
           class="absolute top-2 right-3 text-xl font-bold text-gray-600 hover:text-black"
           on:click={() => (showAddEmployeeModal = false)}
@@ -412,6 +419,9 @@
             <option>Labor</option>
             <option>Other</option>
           </select>
+          {#if newType === 'Other'}
+            <input type="text" bind:value={newCustomType} placeholder="Enter custom type name" class="w-full border px-3 py-2 rounded mt-2" />
+          {/if}
         </div>
 
         <!-- For Hourly Rate -->
@@ -436,7 +446,7 @@
     <div
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md md:max-w-lg lg:max-w-xl relative overflow-y-auto" style="max-height:90vh;">
         <button
           class="absolute top-2 right-3 text-xl font-bold text-gray-600 hover:text-black"
           on:click={() => (showEditEmployeeModal = false)}
@@ -464,6 +474,9 @@
             <option>Labor</option>
             <option>Other</option>
           </select>
+          {#if editType === 'Other'}
+            <input type="text" bind:value={editCustomType} placeholder="Enter custom type name" class="w-full border px-3 py-2 rounded mt-2" />
+          {/if}
         </div>
 
         <div class="mb-3">

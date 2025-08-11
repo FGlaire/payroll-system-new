@@ -43,7 +43,7 @@
   function renderChart() {
     if (!chartCanvas) return;
     // Calculate average hourly rates by type
-    const types = ['Foreman', 'Skilled', 'Labor'];
+    const types = ['Foreman', 'Skilled', 'Labor', 'Other'];
     const averages = types.map(type => {
       const filtered = employees.filter(e => e.employee_type === type);
       if (!filtered.length) return 0;
@@ -57,7 +57,7 @@
         datasets: [{
           label: 'Average Hourly Rate',
           data: averages,
-          backgroundColor: ['#facc15', '#60a5fa', '#f87171']
+          backgroundColor: ['#facc15', '#60a5fa', '#f87171', '#a78bfa']
         }]
       },
       options: {
@@ -409,6 +409,7 @@
             <option>Foreman</option>
             <option>Skilled</option>
             <option>Labor</option>
+            <option>Other</option>
           </select>
         </div>
 
@@ -460,6 +461,7 @@
             <option>Foreman</option>
             <option>Skilled</option>
             <option>Labor</option>
+            <option>Other</option>
           </select>
         </div>
 

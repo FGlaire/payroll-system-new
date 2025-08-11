@@ -1,7 +1,7 @@
 export interface Employee {
   employee_id: string;
   employee_name: string;
-  employee_type: 'Skilled' | 'Foreman' | 'Labor';
+  employee_type: 'Skilled' | 'Foreman' | 'Labor' | 'Other';
   rate_per_hour: number;
   date_hired: string;
   status: 'Active' | 'Inactive';
@@ -57,6 +57,6 @@ export interface ActiveEmployee {
 export interface NewEmployee {
   employee_id: string;
   employee_name: string;
-  employee_type: 'Skilled' | 'Foreman' | 'Labor';
+  employee_type: 'Skilled' | 'Foreman' | 'Labor' | 'Other';
   rate_per_hour: number;
 } 

@@ -1,8 +1,12 @@
 <script>
   import Layout from "../components/Layout.svelte";
   import { push } from "svelte-spa-router";
-  import { onMount } from 'svelte';
-  import { getActiveEmployees, getEmployeeById, createPayrollTransaction } from '../lib/database.js';
+  import { onMount } from "svelte";
+  import {
+    getActiveEmployees,
+    getEmployeeById,
+    createPayrollTransaction,
+  } from "../lib/database.js";
 
   let employeeIdInput = "";
   let selectedEmployee = null;
@@ -21,7 +25,7 @@
       employees = await getActiveEmployees();
     } catch (err) {
       error = err.message;
-      console.error('Error loading employees:', err);
+      console.error("Error loading employees:", err);
     }
   });
 
@@ -30,7 +34,7 @@
       loading = true;
       error = null;
       hasValidated = true;
-      
+
       if (!employeeIdInput.trim()) {
         error = "Please enter an employee ID";
         return;
@@ -40,7 +44,9 @@
 
       if (
         selectedEmployee &&
-        !validatedEmployees.find((e) => e.employee_id === selectedEmployee.employee_id)
+        !validatedEmployees.find(
+          (e) => e.employee_id === selectedEmployee.employee_id,
+        )
       ) {
         validatedEmployees = [...validatedEmployees, selectedEmployee];
       }
@@ -48,16 +54,18 @@
       // User-friendly error for not found
       if (
         err.message &&
-        (err.message.includes('Cannot coerce the result to a single JSON object') ||
-         err.message.toLowerCase().includes('no rows') ||
-         err.message.toLowerCase().includes('not found'))
+        (err.message.includes(
+          "Cannot coerce the result to a single JSON object",
+        ) ||
+          err.message.toLowerCase().includes("no rows") ||
+          err.message.toLowerCase().includes("not found"))
       ) {
         selectedEmployee = null;
         error = null; // Don't show technical error
       } else {
         error = err.message;
       }
-      console.error('Error validating employee:', err);
+      console.error("Error validating employee:", err);
     } finally {
       loading = false;
     }
@@ -73,7 +81,7 @@
         overtimeHours: "",
         specialAllowances: "",
         customDeductions: "",
-        deductionDetails: [] // <-- new
+        deductionDetails: [], // <-- new
       };
     } else if (!payslipData[employee.employee_id].deductionDetails) {
       payslipData[employee.employee_id].deductionDetails = [];
@@ -87,15 +95,29 @@
   function addDeductionField() {
     if (selectedEmployee) {
       const key = selectedEmployee.employee_id;
-      const current = payslipData[key].deductionDetails || [];
-      payslipData[key].deductionDetails = [...current, { remark: '', amount: '' }];
+      const current = payslipData[key]?.deductionDetails || [];
+      // reassign to trigger Svelte reactivity
+      payslipData = {
+        ...payslipData,
+        [key]: {
+          ...payslipData[key],
+          deductionDetails: [...current, { remark: "", amount: "" }],
+        },
+      };
     }
   }
+
   function removeDeductionField(idx) {
     if (selectedEmployee) {
       const key = selectedEmployee.employee_id;
-      const current = payslipData[key].deductionDetails || [];
-      payslipData[key].deductionDetails = current.filter((_, i) => i !== idx);
+      const current = payslipData[key]?.deductionDetails || [];
+      payslipData = {
+        ...payslipData,
+        [key]: {
+          ...payslipData[key],
+          deductionDetails: current.filter((_, i) => i !== idx),
+        },
+      };
     }
   }
 
@@ -114,26 +136,29 @@
       // Sum all deduction amounts
       let totalDeductions = 0;
       if (data.deductionDetails && data.deductionDetails.length > 0) {
-        totalDeductions = data.deductionDetails.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+        totalDeductions = data.deductionDetails.reduce(
+          (sum, d) => sum + (parseFloat(d.amount) || 0),
+          0,
+        );
       }
       data.customDeductions = totalDeductions;
 
       const payrollData = {
         p_employee_id: selectedEmployee.employee_id,
-        p_cut_off_start_date: new Date().toISOString().split('T')[0],
-        p_cut_off_end_date: new Date().toISOString().split('T')[0],
+        p_cut_off_start_date: new Date().toISOString().split("T")[0],
+        p_cut_off_end_date: new Date().toISOString().split("T")[0],
         p_regular_hours: parseFloat(data.regularHours),
         p_overtime_hours: parseFloat(data.overtimeHours) || 0,
         p_special_allowances: parseFloat(data.specialAllowances) || 0,
         p_custom_deductions: totalDeductions,
-        p_deduction_remarks: JSON.stringify(data.deductionDetails)
+        p_deduction_remarks: JSON.stringify(data.deductionDetails),
       };
 
       await createPayrollTransaction(payrollData);
       showModal = false;
     } catch (err) {
       error = err.message;
-      console.error('Error saving payroll data:', err);
+      console.error("Error saving payroll data:", err);
     } finally {
       loading = false;
     }
@@ -167,14 +192,18 @@
 
     <!-- Error Display -->
     {#if error}
-      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div
+        class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+      >
         {error}
       </div>
     {/if}
 
     <!-- For Validation, if employee is nasa list -->
     <div class="flex flex-wrap items-center gap-2">
-      <label for="employee-id-input" class="block font-medium">Enter Employee ID:</label>
+      <label for="employee-id-input" class="block font-medium"
+        >Enter Employee ID:</label
+      >
       <input
         id="employee-id-input"
         type="text"
@@ -187,7 +216,7 @@
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto shadow-md text-sm"
         disabled={loading}
       >
-        {loading ? 'Validating...' : 'Validate'}
+        {loading ? "Validating..." : "Validate"}
       </button>
     </div>
 
@@ -226,37 +255,59 @@
         <tbody>
           {#if validatedEmployees.length === 0}
             <tr class="record-row">
-              <td colspan="9" class="text-center p-4 text-sm">No record found.</td>
+              <td colspan="9" class="text-center p-4 text-sm"
+                >No record found.</td
+              >
             </tr>
           {:else}
             {#each validatedEmployees as employee (employee.employee_id)}
-              <tr class="record-row">
+              <tr class="record-row align-top">
                 <td class="p-3 text-sm">{employee.employee_id}</td>
                 <td class="p-3 text-sm">{employee.employee_name}</td>
                 <td class="p-3 text-sm">{employee.employee_type}</td>
                 <td class="p-3 text-sm">₱{employee.rate_per_hour}</td>
-                <td class="p-3 text-sm">{getPayslipDataById(employee.employee_id).regularHours || "--"}</td>
-                <td class="p-3 text-sm">{getPayslipDataById(employee.employee_id).overtimeHours || "--"}</td>
+                <td class="p-3 text-sm"
+                  >{getPayslipDataById(employee.employee_id).regularHours ||
+                    "--"}</td
+                >
+                <td class="p-3 text-sm"
+                  >{getPayslipDataById(employee.employee_id).overtimeHours ||
+                    "--"}</td
+                >
                 <td class="p-3 text-sm">
                   {#if getPayslipDataById(employee.employee_id).specialAllowances}
-                    ₱{(+getPayslipDataById(employee.employee_id).specialAllowances).toFixed(2)}
+                    ₱{(+getPayslipDataById(employee.employee_id)
+                      .specialAllowances).toFixed(2)}
                   {:else}
                     --
                   {/if}
                 </td>
+
+                <!-- Deductions column updated to show all deduction details -->
                 <td class="p-3 text-sm">
-                  {#if getPayslipDataById(employee.employee_id).customDeductions}
-                    ₱{(+getPayslipDataById(employee.employee_id).customDeductions).toFixed(2)}
+                  {#if getPayslipDataById(employee.employee_id).deductionDetails?.length}
+                    <ul class="list-disc pl-4 space-y-1">
+                      {#each getPayslipDataById(employee.employee_id).deductionDetails as d}
+                        <li>
+                          {d.remark || "No remark"} — ₱{(
+                            +d.amount || 0
+                          ).toFixed(2)}
+                        </li>
+                      {/each}
+                    </ul>
                   {:else}
                     --
                   {/if}
                 </td>
+
                 <td class="p-3 flex flex-wrap gap-2">
                   <button
                     on:click={() => openModal(employee)}
                     class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded w-full sm:w-auto shadow-md text-sm"
                   >
-                    {getPayslipDataById(employee.employee_id).regularHours ? "Edit" : "Input Data"}
+                    {getPayslipDataById(employee.employee_id).regularHours
+                      ? "Edit"
+                      : "Input Data"}
                   </button>
                   {#if getPayslipDataById(employee.employee_id).regularHours}
                     <button
@@ -276,7 +327,9 @@
 
     <!-- Modal for inputting Data -->
     {#if showModal}
-      <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div
+        class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4"
+      >
         <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
           <button
             on:click={closeModal}
@@ -289,12 +342,16 @@
 
           <!-- Regular Hours -->
           <div class="mb-3">
-            <label for="regular-hours" class="block font-medium mb-1">Regular Hours *</label>
+            <label for="regular-hours" class="block font-medium mb-1"
+              >Regular Hours *</label
+            >
             <input
               id="regular-hours"
               type="number"
               step="0.5"
-              bind:value={payslipData[selectedEmployee.employee_id].regularHours}
+              bind:value={
+                payslipData[selectedEmployee.employee_id].regularHours
+              }
               placeholder="0.0"
               class="w-full border p-2 rounded text-sm"
             />
@@ -302,12 +359,16 @@
 
           <!-- Overtime Hours -->
           <div class="mb-3">
-            <label for="overtime-hours" class="block font-medium mb-1">Overtime Hours</label>
+            <label for="overtime-hours" class="block font-medium mb-1"
+              >Overtime Hours</label
+            >
             <input
               id="overtime-hours"
               type="number"
               step="0.5"
-              bind:value={payslipData[selectedEmployee.employee_id].overtimeHours}
+              bind:value={
+                payslipData[selectedEmployee.employee_id].overtimeHours
+              }
               placeholder="0.0"
               class="w-full border p-2 rounded text-sm"
             />
@@ -315,12 +376,16 @@
 
           <!-- Special Allowances -->
           <div class="mb-3">
-            <label for="special-allowances" class="block font-medium mb-1">Special Allowances (₱)</label>
+            <label for="special-allowances" class="block font-medium mb-1"
+              >Special Allowances (₱)</label
+            >
             <input
               id="special-allowances"
               type="number"
               step="0.01"
-              bind:value={payslipData[selectedEmployee.employee_id].specialAllowances}
+              bind:value={
+                payslipData[selectedEmployee.employee_id].specialAllowances
+              }
               placeholder="0.00"
               class="w-full border p-2 rounded text-sm"
             />
@@ -331,20 +396,39 @@
             <label class="block font-medium mb-1">Custom Deductions</label>
             {#each payslipData[selectedEmployee.employee_id].deductionDetails as deduction, idx}
               <div class="flex gap-2 mb-2">
-                <input type="text" placeholder="Remark" bind:value={deduction.remark} class="border p-2 rounded text-sm flex-1" />
-                <input type="number" step="0.01" placeholder="Amount" bind:value={deduction.amount} class="border p-2 rounded text-sm w-32" />
-                <button type="button" class="bg-red-500 text-white px-2 rounded" on:click={() => removeDeductionField(idx)}>-</button>
+                <input
+                  type="text"
+                  placeholder="Remark"
+                  bind:value={deduction.remark}
+                  class="border p-2 rounded text-sm flex-1"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Amount"
+                  bind:value={deduction.amount}
+                  class="border p-2 rounded text-sm w-32"
+                />
+                <button
+                  type="button"
+                  class="bg-red-500 text-white px-2 rounded"
+                  on:click={() => removeDeductionField(idx)}>-</button
+                >
               </div>
             {/each}
-            <button type="button" class="bg-blue-500 text-white px-3 py-1 rounded text-sm" on:click={addDeductionField}>+ Add Deduction</button>
+            <button
+              type="button"
+              class="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+              on:click={addDeductionField}>+ Add Deduction</button
+            >
             {#key payslipData[selectedEmployee.employee_id].deductionDetails}
               <div class="mt-2 text-sm text-gray-600">
-                Total: ₱{
-                  (
-                    (payslipData[selectedEmployee.employee_id].deductionDetails || [])
-                      .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
-                  ).toFixed(2)
-                }
+                Total: ₱{(
+                  payslipData[selectedEmployee.employee_id].deductionDetails ||
+                  []
+                )
+                  .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+                  .toFixed(2)}
               </div>
             {/key}
           </div>
@@ -355,7 +439,7 @@
               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-md text-sm"
               disabled={loading}
             >
-              {loading ? 'Saving...' : 'Save'}
+              {loading ? "Saving..." : "Save"}
             </button>
             <button
               on:click={closeModal}
